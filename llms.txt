@@ -1,0 +1,12 @@
+# @haruhimemoe/time
+
+> Time zones, weekly availability, match slot finding, regions and .ics files for tournament and event tools. DST-aware IANA zone offsets and wall-time conversion through Intl (Temporal's gap and overlap rules), weekly availability grids stored in UTC slots that follow their owner's clock across DST, ranked match start times with who is free (sides, need, staff, filter, tiebreak), continents and region locks from osu! country codes, RFC 5545 calendar output. No runtime dependencies; zod 4 as a peer. ESM for Node 22.12+, Bun, Deno, browsers and bundlers.
+
+Main exports: `offsetMinutes`, `formatOffset`, `parseOffset`, `fromWallTime`, `toWallTime`, `weeklyWindow`, `fromZone`, `toZone`, `localSlot`, `isFreeDuring`, `findSlots`, `checkRegionLock`, `defineRegions`, `CONTINENTS`, `buildCalendar`, `TimeError`. Subpaths: `@haruhimemoe/time/zone`, `/availability`, `/slots`, `/region`, `/ics`.
+
+## Docs
+
+- [Install](https://github.com/haruhimemoe/time#install)
+- [Quick start](https://github.com/haruhimemoe/time#quick-start)
+- [Concepts](https://github.com/haruhimemoe/time#concepts): instants, zones, weeks, grids and DST
+- [API](https://github.com/haruhimemoe/time#api): every export per subpath

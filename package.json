@@ -1,0 +1,92 @@
+{
+  "name": "@haruhimemoe/time",
+  "version": "0.1.0",
+  "description": "Timezones, weekly availability, match slot finding, regions and .ics files for tournament and event tools. DST-aware IANA zones through Intl, availability grids stored in UTC, ranked match times with who is free, region locks from country codes. No runtime dependencies; zod 4 as a peer.",
+  "keywords": [
+    "timezone",
+    "iana",
+    "dst",
+    "availability",
+    "scheduling",
+    "tournament",
+    "osu",
+    "ics",
+    "icalendar",
+    "zod"
+  ],
+  "homepage": "https://github.com/haruhimemoe/time#readme",
+  "bugs": "https://github.com/haruhimemoe/time/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/haruhimemoe/time.git"
+  },
+  "license": "MIT",
+  "author": "David (https://dvh.sh)",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./zone": {
+      "types": "./dist/zone/index.d.ts",
+      "default": "./dist/zone/index.js"
+    },
+    "./availability": {
+      "types": "./dist/availability/index.d.ts",
+      "default": "./dist/availability/index.js"
+    },
+    "./slots": {
+      "types": "./dist/slots/index.d.ts",
+      "default": "./dist/slots/index.js"
+    },
+    "./region": {
+      "types": "./dist/region/index.d.ts",
+      "default": "./dist/region/index.js"
+    },
+    "./ics": {
+      "types": "./dist/ics/index.d.ts",
+      "default": "./dist/ics/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.12"
+  },
+  "packageManager": "bun@1.4.2",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "bun run clean && tsc -p tsconfig.build.json",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "test:dist": "bun run build && node scripts/smoke.mjs",
+    "prepublishOnly": "bun run check && bun run typecheck && bun run test && bun run test:dist",
+    "check:consumer": "bun run build && node scripts/check-consumer.mjs"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.16"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@types/node": "26.6.2",
+    "@vitest/coverage-v8": "5.0.1",
+    "fast-check": "4.10.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1",
+    "zod": "4.6.5"
+  }
+}
