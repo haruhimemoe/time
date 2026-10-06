@@ -170,6 +170,16 @@ describe("availabilitySchema", () => {
     expect(availabilitySchema.safeParse(grid).success).toBe(false);
   });
 
+  it("outputs the zone as Intl names it", () => {
+    const parsed = availabilitySchema.parse({
+      slotMinutes: 60,
+      slots: [],
+      zone: "asia/tokyo",
+      week: "2026-10-05",
+    });
+    expect(parsed.zone).toBe("Asia/Tokyo");
+  });
+
   it("matches the Availability type", () => {
     const parsed = availabilitySchema.parse({ slotMinutes: 60, slots: [1] });
     const grid: Availability = { slotMinutes: parsed.slotMinutes, slots: parsed.slots };

@@ -7,13 +7,14 @@
  */
 
 import { z } from "zod";
-import { isTimeZone } from "../zone/offset.js";
+import { assertTimeZone, isTimeZone } from "../zone/offset.js";
 
 const WEEK_MINUTES = 10_080;
 
 /**
  * A stored grid: slotMinutes a whole divisor of 1440 from 5 up, slots strictly increasing inside
- * the week, and zone (a valid IANA zone) with week (a Monday, YYYY-MM-DD) both or neither.
+ * the week, and zone (a valid IANA zone, output as Intl names it) with week (a Monday,
+ * YYYY-MM-DD) both or neither.
  */
 export const availabilitySchema = z
   .object({
@@ -24,7 +25,11 @@ export const availabilitySchema = z
       .max(1440)
       .refine((m) => 1440 % m === 0, "slotMinutes must divide 1440"),
     slots: z.array(z.number().int().min(0)),
-    zone: z.string().refine(isTimeZone, "not an IANA time zone").optional(),
+    zone: z
+      .string()
+      .refine(isTimeZone, "not an IANA time zone")
+      .transform(assertTimeZone)
+      .optional(),
     week: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)

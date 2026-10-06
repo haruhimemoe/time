@@ -127,7 +127,8 @@ export interface WeeklyWindowOptions {
  * @returns {{ start: Date; end: Date }} the window that contains `at`, or else the next one to
  *          open. Edges are wall times in the zone, so a window over a DST switch is an hour
  *          shorter or longer. `end` is exclusive.
- * @throws {TimeError} invalid-window for days outside 1-7 or minute outside 0-1439; invalid-zone
+ * @throws {TimeError} invalid-window for a bad day, days outside 1-7 or minute outside 0-1439;
+ *         invalid-zone
  */
 export const weeklyWindow = (
   at: Instant,
@@ -135,7 +136,7 @@ export const weeklyWindow = (
   opts: WeeklyWindowOptions,
 ): { start: Date; end: Date } => {
   const minute = opts.minute ?? 0;
-  if (!isInt(opts.days, 1, 7) || !isInt(minute, 0, 1439)) {
+  if (!isInt(opts.days, 1, 7) || !isInt(minute, 0, 1439) || !WEEKDAYS.includes(opts.day)) {
     throw new TimeError("invalid-window", `bad weekly window: ${JSON.stringify(opts)}`);
   }
   const ms = toMs(at);

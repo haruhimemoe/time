@@ -54,7 +54,9 @@ In October, Saturday 18:00 in Los Angeles is Sunday 10:00 in Tokyo (01:00 UTC). 
 
 A player's 18:00 isn't the same UTC hour all year. `fromZone` converts the local week that contains `at` (default now) slot by slot, and records `zone` and `week` (that local Monday) on the grid. `isFreeAt`, `isFreeDuring`, `toZone` and `findSlots` use those two fields to move the grid with the owner's clock: a Saturday 18:00 entered in October still means Saturday 18:00 after the clocks change in November. A grid without them is a fixed UTC pattern.
 
-Inside one week, a local slot a spring-forward gap skips is dropped, and one that happens twice at fall back marks both UTC slots. A local slot that doesn't line up with UTC slots (Kolkata, UTC+5:30, at 60 minutes) is floored to the UTC slot containing its start, which can show someone free up to half an hour early. Use `slotMinutes: 30` for half-hour zones and `15` for Nepal (UTC+5:45) and Chatham (UTC+12:45) to avoid that.
+Inside one week, a local slot a spring-forward gap skips is dropped, and one that happens twice at fall back marks both UTC slots. A dropped slot can't come back when the grid is moved to other weeks, so ask for availability in a week without a DST switch (the default, now, is fine on all but two weekends a year). A local slot that doesn't line up with UTC slots (Kolkata, UTC+5:30, at 60 minutes) is floored to the UTC slot containing its start, which can show someone free up to half an hour early. Use `slotMinutes: 30` for half-hour zones and `15` for Nepal (UTC+5:45) and Chatham (UTC+12:45) to avoid that. Either way, `toZone(fromZone(x, zone), zone)` gives `x` back, so loading and saving a grid never shifts it.
+
+Treat grids as immutable: to change one, build a new `slots` array. The functions cache per `slots` array.
 
 ## API
 
@@ -101,7 +103,7 @@ Types: `Instant`, `Weekday`, `WallTime`, `ZonedWallTime`, `Disambiguation`, `Wee
 | `isFreeAt(grid, at)` | Whether the slot containing `at` is free. |
 | `isFreeDuring(grid, start, end)` | Whether every slot touching `[start, end)` is free. |
 | `slotsPerWeek(slotMinutes)`, `weekSlotOf(at, slotMinutes?)` | Slot math: `168` at 60 minutes; the UTC week slot containing an instant. |
-| `availabilitySchema` | zod schema for a stored grid. Slots must be strictly increasing; `zone` and `week` come together, and `week` must be a Monday. |
+| `availabilitySchema` | zod schema for a stored grid. Slots must be strictly increasing; `zone` and `week` come together, and `week` must be a Monday. The parsed `zone` is the name `Intl` gives it. |
 
 Union, intersect and count need one slot size (else `mismatched-slot-minutes`); they keep `zone` and `week` only when every grid shares them. An empty list gives an empty 60-minute grid.
 
@@ -111,13 +113,13 @@ Union, intersect and count need one slot size (else `mismatched-slot-minutes`); 
 
 | Query field | Meaning |
 | --- | --- |
-| `sides` | At least one `{ id, members, need? }`. A member is `{ id, availability }`; `null` or an empty grid means no data, and that member is skipped. `need` is how many members with data must be free (default: all of them). |
+| `sides` | At least one `{ id, members, need? }`. A member is `{ id, availability }`; `null` or an empty grid means no data, and that member is skipped. `need` is how many members with data must be free (default: all of them); a need above that count leaves the side never ready. |
 | `staff`, `staffNeed` | Referees, streamers, commentators. Free staff are listed on every candidate; `staffNeed` (default 0) makes some required. |
 | `window` | `{ start, end }`. Every match starts and ends inside it. |
 | `lengthMinutes` | Match length. The whole span must be free. |
 | `stepMinutes` | Minutes between starts, counted from Monday 00:00 UTC. Default: the grids' slot size. |
 | `minReadySides` | Sides that must be ready. Default: all. |
-| `collapse` | Default `true`: back-to-back starts with the same free players and staff become one candidate with a longer `runMinutes`. |
+| `collapse` | Default `true`: back-to-back starts with the same free players and staff become one candidate with a longer `runMinutes`. Only when `stepMinutes` is at most `lengthMinutes`. |
 | `filter(candidate)` | Drop candidates. |
 | `tiebreak(a, b)` | Orders candidates with the same number of ready sides, before the default order. |
 | `limit` | Default 10. |
@@ -144,7 +146,7 @@ A higher seed's fallback (accept slots where only the better seed is fully free)
 
 | Export | Does |
 | --- | --- |
-| `buildCalendar(events, { prodId?, name?, stamp? })` | A complete iCalendar file: CRLF line endings, lines folded at 75 octets, UTC times. Each event is `{ uid, start, end, title, url?, description?, location? }`. `stamp` is every event's `DTSTAMP` (default now). Throws `invalid-event` for an empty or repeated uid, a bad instant, an end not after its start, or a url with spaces or control characters. |
+| `buildCalendar(events, { prodId?, name?, stamp? })` | A complete iCalendar file: CRLF line endings, lines folded at 75 octets, UTC times. Each event is `{ uid, start, end, title, url?, description?, location? }`. `stamp` is every event's `DTSTAMP` (default now). Times are whole seconds. No events gives an empty calendar, which calendar apps accept for subscription feeds. Throws `invalid-event` for an empty or repeated uid, a bad instant, an end not after its start, or a url with spaces or control characters. |
 | `escapeText(text)` | iCalendar text escaping: `\`, `;` and `,` escaped, line breaks as `\n`, other control characters except tab removed. |
 | `foldLine(line)` | Folds one line so each physical line is at most 75 UTF-8 octets; never splits a character. |
 

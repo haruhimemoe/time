@@ -144,6 +144,14 @@ describe("findSlots", () => {
     ).toEqual([]);
   });
 
+  it("doesn't merge starts when the step leaves unchecked time between them", () => {
+    const grid = { slotMinutes: 30, slots: [0, 2, 4] };
+    const sides = [{ id: "a", members: [{ id: "a1", availability: grid }] }];
+    const window = { start: MON, end: MON + 4 * HOUR };
+    const result = findSlots({ sides, window, lengthMinutes: 30, stepMinutes: 60 });
+    expect(result.map((c) => c.runMinutes)).toEqual([30, 30, 30]);
+  });
+
   it("follows each player's clock across a DST switch", () => {
     // Both pick Saturday 18:00 local in October; the window is the weekend after fall back.
     const oct = { at: Date.parse("2026-10-07T12:00:00Z") };

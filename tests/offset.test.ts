@@ -150,7 +150,7 @@ describe("formatOffset", () => {
     expect(formatOffset(minutes, "iso")).toBe(iso);
   });
 
-  it.each([Number.NaN, 1440, -1440, Number.POSITIVE_INFINITY])("throws on %d", (m) => {
+  it.each([Number.NaN, 1440, -1440, 1439.6, Number.POSITIVE_INFINITY])("throws on %d", (m) => {
     expect(() => formatOffset(m)).toThrow(TimeError);
   });
 

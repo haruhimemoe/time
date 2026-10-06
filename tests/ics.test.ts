@@ -120,6 +120,7 @@ describe("buildCalendar", () => {
     [{ uid: "  " }],
     [{ end: match.start }],
     [{ end: Date.parse("2026-10-10T18:00:00Z") }],
+    [{ start: 0, end: 999 }],
     [{ start: new Date(Number.NaN) }],
     [{ url: "https://x.org/a b" }],
     [{ url: "https://x.org/\r\nX-EVIL:1" }],

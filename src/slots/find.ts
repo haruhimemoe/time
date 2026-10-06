@@ -87,6 +87,7 @@ export const findSlots = (query: SlotQuery): SlotCandidate[] => {
     const last = kept[kept.length - 1];
     if (
       query.collapse !== false &&
+      step <= length &&
       last?.key === key &&
       last.candidate.start.getTime() + last.candidate.runMinutes * MINUTE_MS - lengthMs ===
         start - stepMs

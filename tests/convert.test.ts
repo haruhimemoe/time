@@ -140,6 +140,16 @@ describe("toZone", () => {
     expect(toZone(grid, zone, oct)).toEqual(local);
   });
 
+  it("survives load and save cycles in half-hour zones", () => {
+    let local = [0, 1];
+    for (let i = 0; i < 4; i += 1) {
+      local = toZone(fromZone(local, "Asia/Kolkata", oct), "Asia/Kolkata", oct);
+    }
+    expect(local).toEqual([0, 1]);
+    const nepal = fromZone([0], "Asia/Kathmandu", { ...oct, slotMinutes: 30 });
+    expect(toZone(nepal, "Asia/Kathmandu")).toEqual([0]);
+  });
+
   it("shows a UTC grid in another zone", () => {
     const grid = createAvailability([0, 6 * H + 15]);
     expect(toZone(grid, "Asia/Tokyo", oct)).toEqual([0, 9]);
@@ -194,6 +204,17 @@ describe("isFreeAt and isFreeDuring", () => {
     expect(
       isFreeDuring(grid, Date.parse("2026-11-01T07:00:00Z"), Date.parse("2026-11-01T10:00:00Z")),
     ).toBe(true);
+  });
+
+  it("reads a replaced slots array, not a stale cache", () => {
+    const grid = fromZone([0], "UTC", { at: Date.parse("2026-10-07T12:00:00Z") });
+    const later = Date.parse("2026-12-07T01:30:00Z");
+    expect(isFreeAt(grid, later)).toBe(false);
+    grid.slots = [1];
+    expect(isFreeAt(grid, later)).toBe(true);
+    const plain = createAvailability([0]);
+    plain.slots.push(1);
+    expect(isFreeAt(plain, Date.parse("2026-10-05T01:30:00Z"))).toBe(true);
   });
 
   it("rejects empty spans", () => {

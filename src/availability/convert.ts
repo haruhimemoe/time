@@ -60,49 +60,43 @@ export const localSlot = (day: Weekday, minute: number, slotMinutes = 60): numbe
   return (weekdayIndex(day) * DAY_MINUTES + minute - (minute % slotMinutes)) / slotMinutes;
 };
 
+/** The UTC slots one local slot covers in a week: none in a gap, two in a repeated hour. */
+const mapSlot = (index: number, zone: string, slotMinutes: number, mondayDate: number) => {
+  const start = index * slotMinutes;
+  const wall = wallAt(mondayDate + Math.floor(start / DAY_MINUTES) * DAY_MS, start % DAY_MINUTES);
+  const slotMs = slotMinutes * MINUTE_MS;
+  const slot = (instant: Date): number =>
+    Math.floor(mod(instant.getTime() - MONDAY_EPOCH_MS, WEEK_MS) / slotMs);
+  try {
+    return [slot(fromWallTime(wall, zone, "reject"))];
+  } catch (error) {
+    if ((error as TimeError).code !== "ambiguous-time") return [];
+    return [slot(fromWallTime(wall, zone, "earlier")), slot(fromWallTime(wall, zone, "later"))];
+  }
+};
+
 const utcSlots = (local: Iterable<number>, zone: string, slotMinutes: number, ms: number) => {
   const monday = localMonday(ms, zone);
-  const slots: number[] = [];
-  const slotMs = slotMinutes * MINUTE_MS;
-  const push = (instant: Date): void => {
-    slots.push(Math.floor(mod(instant.getTime() - MONDAY_EPOCH_MS, WEEK_MS) / slotMs));
-  };
-  for (const index of cleanSlots(local, slotMinutes)) {
-    const start = index * slotMinutes;
-    const wall = wallAt(
-      monday.date + Math.floor(start / DAY_MINUTES) * DAY_MS,
-      start % DAY_MINUTES,
-    );
-    try {
-      push(fromWallTime(wall, zone, "reject"));
-    } catch (error) {
-      // A spring-forward gap skips the slot; the repeated fall-back hour marks both copies.
-      if ((error as TimeError).code !== "ambiguous-time") continue;
-      push(fromWallTime(wall, zone, "earlier"));
-      push(fromWallTime(wall, zone, "later"));
-    }
-  }
+  const slots = cleanSlots(local, slotMinutes).flatMap((index) =>
+    mapSlot(index, zone, slotMinutes, monday.date),
+  );
   return { slots: cleanSlots(slots, slotMinutes), week: monday.key };
 };
 
-const localSlots = (grid: Availability, zone: string, mondayDate: number): number[] => {
-  const slotMinutes = grid.slotMinutes;
-  const total = slotsPerWeek(slotMinutes);
-  const perDay = DAY_MINUTES / slotMinutes;
-  const start = fromWallTime(wallAt(mondayDate, 0), zone).getTime();
-  const end = fromWallTime(wallAt(mondayDate + 7 * DAY_MS, 0), zone).getTime();
-  const slotMs = slotMinutes * MINUTE_MS;
+/** The exact inverse of utcSlots for one week: local slots whose UTC slot is free. */
+const localSlots = (
+  free: Set<number>,
+  zone: string,
+  mondayDate: number,
+  slotMinutes: number,
+): number[] => {
   const out: number[] = [];
-  for (const slot of grid.slots) {
-    let t = start + mod(MONDAY_EPOCH_MS + slot * slotMs - start, WEEK_MS);
-    for (; t < end; t += WEEK_MS) {
-      const w = toWallTime(t, zone);
-      const day = Math.round((wallToUtcMs(w.year, w.month, w.day) - mondayDate) / DAY_MS);
-      const index = day * perDay + Math.floor((w.hour * 60 + w.minute) / slotMinutes);
-      if (index >= 0 && index < total) out.push(index);
+  for (let index = 0; index < slotsPerWeek(slotMinutes); index += 1) {
+    if (mapSlot(index, zone, slotMinutes, mondayDate).some((slot) => free.has(slot))) {
+      out.push(index);
     }
   }
-  return cleanSlots(out, slotMinutes);
+  return out;
 };
 
 /**
@@ -114,7 +108,8 @@ const localSlots = (grid: Availability, zone: string, mondayDate: number): numbe
  * @returns {Availability} UTC slots, with zone and week set. A slot that doesn't exist that week
  *          (a spring-forward gap) is dropped; one that happens twice (fall back) marks both.
  *          A local slot that doesn't line up with UTC slots (Kolkata at 60 minutes) is floored to
- *          the UTC slot containing its start.
+ *          the UTC slot containing its start. Enter grids for a week without a DST switch: a slot
+ *          dropped in a gap stays dropped when the grid is re-anchored to other weeks.
  * @throws {TimeError} invalid-zone, invalid-slot, invalid-slot-minutes
  */
 export const fromZone = (
@@ -128,26 +123,29 @@ export const fromZone = (
   return { slotMinutes, slots, zone: name, week };
 };
 
-const anchors = new WeakMap<Availability, Map<string, Set<number>>>();
+const anchors = new WeakMap<number[], Map<string, Set<number>>>();
 
-/** The grid's UTC slots for the week of `ms`: re-anchored to the owner's clock when it can be. */
+/**
+ * The grid's UTC slots for the week of `ms`, re-anchored to the owner's clock when the grid has
+ * zone and week. Re-anchored weeks are cached by the slots array, so grids are treated as
+ * immutable: replace `slots` instead of editing it in place.
+ */
 const slotsAt = (grid: Availability, ms: number): Set<number> => {
-  let byWeek = anchors.get(grid);
-  if (!byWeek) {
-    byWeek = new Map();
-    anchors.set(grid, byWeek);
-  }
   const zone = grid.zone;
   const week = grid.week ? ISO_DATE.exec(grid.week) : null;
-  const key = zone && week ? localMonday(ms, zone).key : "";
+  if (!zone || !week) return new Set(grid.slots);
+  const key = `${grid.slotMinutes}|${zone}|${grid.week}|${grid.slots.length}|${localMonday(ms, zone).key}`;
+  if (key.endsWith(`|${grid.week}`)) return new Set(grid.slots);
+  let byWeek = anchors.get(grid.slots);
+  if (!byWeek) {
+    byWeek = new Map();
+    anchors.set(grid.slots, byWeek);
+  }
   const cached = byWeek.get(key);
   if (cached) return cached;
-  let slots: number[] = grid.slots;
-  if (zone && week && key !== grid.week) {
-    const owned = wallToUtcMs(Number(week[1]), Number(week[2]), Number(week[3]));
-    slots = utcSlots(localSlots(grid, zone, owned), zone, grid.slotMinutes, ms).slots;
-  }
-  const set = new Set(slots);
+  const owned = wallToUtcMs(Number(week[1]), Number(week[2]), Number(week[3]));
+  const local = localSlots(new Set(grid.slots), zone, owned, grid.slotMinutes);
+  const set = new Set(utcSlots(local, zone, grid.slotMinutes, ms).slots);
   byWeek.set(key, set);
   return set;
 };
@@ -158,7 +156,8 @@ const slotsAt = (grid: Availability, ms: number): Set<number> => {
  * @param zone {string} the zone to show it in
  * @param opts {{ at?: Instant }} an instant in the local ISO week to show (default: the grid's
  *        own week when it was entered in this zone, else now)
- * @returns {number[]} local week slots, sorted. Floors like fromZone.
+ * @returns {number[]} local week slots, sorted: the local slots whose UTC slot is free, so
+ *          toZone(fromZone(x)) gives x back in any week without a DST switch.
  * @throws {TimeError} invalid-zone, invalid-slot-minutes
  */
 export const toZone = (grid: Availability, zone: string, opts: { at?: Instant } = {}): number[] => {
@@ -172,8 +171,7 @@ export const toZone = (grid: Availability, zone: string, opts: { at?: Instant } 
         ? wallToUtcMs(Number(own[1]), Number(own[2]), Number(own[3]), 12)
         : Date.now();
   const monday = localMonday(ms, name);
-  const view = { ...grid, slots: [...slotsAt(grid, monday.date + 3 * DAY_MS)] };
-  return localSlots(view, name, monday.date);
+  return localSlots(slotsAt(grid, monday.date + 3 * DAY_MS), name, monday.date, grid.slotMinutes);
 };
 
 /**

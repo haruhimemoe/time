@@ -258,6 +258,6 @@ describe("weeklyWindow", () => {
   });
 
   it("rejects a bad day code", () => {
-    expect(() => weeklyWindow(0, "UTC", { day: "fry" as "fri", days: 1 })).toThrow(TimeError);
+    expect(() => weeklyWindow(0, "UTC", { day: "fry" as "fri", days: 1 })).toThrow(/window/);
   });
 });

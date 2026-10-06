@@ -19,7 +19,10 @@ export interface Member {
 export interface Side {
   id: string;
   members: readonly Member[];
-  /** Members (with data) who must be free. Default: all of them. */
+  /**
+   * Members (with data) who must be free. Default: all of them. A need above the members with
+   * data leaves the side never ready.
+   */
   need?: number;
 }
 
@@ -37,7 +40,10 @@ export interface SlotQuery {
   stepMinutes?: number;
   /** Sides that must be ready. Default: every side. */
   minReadySides?: number;
-  /** Merge back-to-back starts with the same free players and staff. Default true. */
+  /**
+   * Merge back-to-back starts with the same free players and staff. Default true. Only when
+   * stepMinutes is at most lengthMinutes, so a run never spans time nobody checked.
+   */
   collapse?: boolean;
   /** Drop candidates. Runs after collapse, before sorting. */
   filter?: (candidate: SlotCandidate) => boolean;

@@ -132,10 +132,10 @@ export const offsetMinutes = (zone: string, at: Instant = Date.now()): number =>
  * @throws {TimeError} invalid-offset when not finite or a day or more
  */
 export const formatOffset = (minutes: number, style: "utc" | "iso" = "utc"): string => {
-  if (!Number.isFinite(minutes) || Math.abs(minutes) >= 1440) {
+  const total = Math.round(minutes);
+  if (!Number.isFinite(total) || Math.abs(total) >= 1440) {
     throw new TimeError("invalid-offset", `offset out of range: ${minutes}`);
   }
-  const total = Math.round(minutes);
   const sign = total < 0 ? "-" : "+";
   const hours = Math.floor(Math.abs(total) / 60);
   const rest = Math.abs(total) % 60;

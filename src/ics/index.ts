@@ -95,7 +95,9 @@ const timeOf = (at: Instant, what: string): number => {
  * @function buildCalendar
  * @param events {readonly CalendarEvent[]} the events
  * @param opts {CalendarOptions} PRODID, calendar name and DTSTAMP
- * @returns {string} a complete VCALENDAR, CRLF line endings, folded, ending in CRLF
+ * @returns {string} a complete VCALENDAR, CRLF line endings, folded, ending in CRLF. Times are
+ *          whole seconds; an event must still end after it starts once truncated. No events gives
+ *          an empty calendar, which RFC 5545 doesn't define but calendar apps accept for feeds.
  * @throws {TimeError} invalid-event for an empty or repeated uid, a bad instant, an end not after
  *         its start, or a url with spaces or control characters
  */
@@ -120,15 +122,15 @@ export const buildCalendar = (
       throw new TimeError("invalid-event", `empty or repeated uid: ${JSON.stringify(event.uid)}`);
     }
     uids.add(event.uid);
-    const start = timeOf(event.start, `start of ${event.uid}`);
-    const end = timeOf(event.end, `end of ${event.uid}`);
+    const start = stampOf(timeOf(event.start, `start of ${event.uid}`));
+    const end = stampOf(timeOf(event.end, `end of ${event.uid}`));
     if (end <= start) throw new TimeError("invalid-event", `${event.uid} ends before it starts`);
     lines.push(
       "BEGIN:VEVENT",
       `UID:${escapeText(event.uid)}`,
       `DTSTAMP:${stamp}`,
-      `DTSTART:${stampOf(start)}`,
-      `DTEND:${stampOf(end)}`,
+      `DTSTART:${start}`,
+      `DTEND:${end}`,
       `SUMMARY:${escapeText(event.title)}`,
     );
     if (event.description !== undefined) {
