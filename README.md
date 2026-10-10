@@ -79,7 +79,7 @@ Treat grids as immutable: to change one, build a new `slots` array. The function
 
 `disambiguation` decides what happens to a wall time a DST switch skips (a gap) or repeats (an overlap), with Temporal's names:
 
-| | Gap (02:30 on 2026-03-08 in Los Angeles) | Overlap (01:30 on 2026-11-01 in Los Angeles) |
+| `disambiguation` | Gap (02:30 on 2026-03-08 in Los Angeles) | Overlap (01:30 on 2026-11-01 in Los Angeles) |
 | --- | --- | --- |
 | `"compatible"` (default) | moves forward: 03:30 PDT | the first: 01:30 PDT |
 | `"earlier"` | 01:30 PST | 01:30 PDT |
